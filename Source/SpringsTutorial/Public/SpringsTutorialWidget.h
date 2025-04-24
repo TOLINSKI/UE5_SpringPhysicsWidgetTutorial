@@ -97,9 +97,9 @@ protected:
 
 	void SpringPosition();
 
-	float NetForces(float Displacement);
+	float NetForce(float Displacement);
 
-	FVector2D NetForces(FVector2D Displacement_Vector);
+	FVector2D NetForce(FVector2D Displacement_Vector);
 
 	bool ReachedThreshold(float Displacement);
 

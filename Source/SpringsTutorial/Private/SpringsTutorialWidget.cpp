@@ -10,7 +10,7 @@ void USpringsTutorialWidget::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
 
-	// Setup variables: (Can be changed in the editor)
+	// Setup variables: (Can be overwritten in the editor)
 	SpringConstant = 200.f;
 	DampingCoefficient = 5.f;
 	MouseEffect = 0.1f;
@@ -24,6 +24,8 @@ void USpringsTutorialWidget::NativeOnInitialized()
 	FInt32Vector2 ViewportSizeInt;
 	GetOwningPlayer()->GetViewportSize(ViewportSizeInt.X, ViewportSizeInt.Y);
 	ViewportScale = GetViewportScaleBasedOnSize(ViewportSizeInt);
+
+	UE_LOG(LogTemp, Display, TEXT("ViewportScale = %f"), ViewportScale);
 
 	// Store a variable for logo's slot:
 	LogoSlot = Cast<UCanvasPanelSlot>(Logo->Slot);
@@ -126,111 +128,111 @@ void USpringsTutorialWidget::AdjustShear(float Amount)
 void USpringsTutorialWidget::AdjustScale(float Amount)
 {
 	// Arbitrary Scaler that feels good scale follows the mouse:
-	float ScaleByMousePosition =  FMath::Square(MouseEffect) / 10.f;
+	float MousePositionScaler =  FMath::Square(MouseEffect) / 10.f;
 
 	// Calculate the scale to set on each axis:
-	float ScaleX = 1.f + Amount * ScaleByMousePosition;
+	float ScaleX = 1.f + Amount * MousePositionScaler; 
 	float ScaleY = 2.f - ScaleX;
+
+	// Constraint Scale not to flip:
+	ScaleX = FMath::Max(ScaleX, 0.1f);
+	ScaleY = FMath::Max(ScaleY, 0.1f);
+	
 	Logo->SetRenderScale(FVector2D(ScaleX, ScaleY));
 }
 
-void USpringsTutorialWidget::AdjustPosition(FVector2D NewPosition)
+void USpringsTutorialWidget::AdjustPosition(FVector2D NewPosition_WidgetScale)
 {
-	// New position is in Widget scale!! 
-	LogoSlot->SetPosition(NewPosition);
+	LogoSlot->SetPosition(NewPosition_WidgetScale);
 }
 
 void USpringsTutorialWidget::SpringShear()
 {
+	// Current frame variables:
 	float DeltaTime = GetWorld()->GetDeltaSeconds();
+	float CurrentShearPosition = Logo->GetRenderTransform().Shear.X; // Current shear position
 
+	// Variables for Spring calculation:
 	float ShearRestValue = 0.f; // The "spring-shear" rest position is 0, i.e. shear = 0
-	float ShearDisplacement = Logo->GetRenderTransform().Shear.X - ShearRestValue; // Shear displacement from rest position
-
-	// Check threshold
+	float ShearDisplacement = CurrentShearPosition - ShearRestValue; // Shear displacement from rest position
 	if (ReachedThreshold(ShearDisplacement))
 	{
 		ResetLogo();
 		return;
 	}
 	
-	// Calculate the change in position (velocity):
+	// Calculate the rate of change in position (velocity):
 	float Mass = 1.f; // Mass of the object (for example's sake)
-
-	// Calculate the acceleration the spring would have:
 	float SpringForce = - (SpringConstant * ShearDisplacement); // Hooke's law
 	float DampingForce = DampingCoefficient * (-SpringVelocity);
 	float NetForces = SpringForce + DampingForce;
 	float SpringAcceleration = NetForces / Mass; // a = F/m (Newton's second law)
 	SpringVelocity += SpringAcceleration * DeltaTime; // Frame-independent velocity from "integrating" acceleration 
 
-	// Calculate the new position:
-	float NewShearDisplacement = ShearDisplacement + SpringVelocity * DeltaTime; // Frame-independent displacement from "integrating" velocity
-	float NewShearX = ShearRestValue + NewShearDisplacement; 
+	// Get the change in position from velocity over delta time:
+	float NewShearX = CurrentShearPosition + (SpringVelocity * DeltaTime); // Frame-independent position from "integrating" velocity
 	Logo->SetRenderShear(FVector2D(NewShearX, 0.0f));
 }
 
 void USpringsTutorialWidget::SpringScale()
 {
 	float DeltaTime = GetWorld()->GetDeltaSeconds();
-
+	float CurrentScalePosition = Logo->GetRenderTransform().Scale.X;
+	
 	float ScaleRestValue = 1.f; // I.e. the default scale = 1
-	float ScaleDisplacement = Logo->GetRenderTransform().Scale.X - ScaleRestValue;
-
-	// Check threshold, if the spring is close to rest position and the velocity is low, stop springing:
+	float ScaleDisplacement = CurrentScalePosition - ScaleRestValue;
 	if (ReachedThreshold(ScaleDisplacement))
 	{
 		ResetLogo();
 		return;
 	}
-	
-	// Calculate forces:
-	float SpringAcceleration = NetForces(ScaleDisplacement); 
+
+	// Calculate the rate of change in position (velocity):
+	float SpringAcceleration = NetForce(ScaleDisplacement); 
 	SpringVelocity += SpringAcceleration * DeltaTime;
 
-	// Calculate new scale:
-	float NewScaleDisplacement = ScaleDisplacement + SpringVelocity * DeltaTime; // New Displacement
-	float NewScaleX = ScaleRestValue + NewScaleDisplacement;  // New Scale X value
-	float NewScaleY = FMath::Clamp(2.f - NewScaleX, 0.1f, 1.9f);
+	// Calculate new position from velocity over delta time:
+	float NewScaleX = CurrentScalePosition + (SpringVelocity * DeltaTime);
+	float NewScaleY = 2.f - NewScaleX;
+
+	// Constraint Scale not to flip:
+	NewScaleX = FMath::Max(NewScaleX, 0.1f);
+	NewScaleY = FMath::Max(NewScaleY, 0.1f);
+	
 	Logo->SetRenderScale(FVector2D(NewScaleX, NewScaleY));
 }
 
 void USpringsTutorialWidget::SpringPosition()
 {
 	float DeltaTime = GetWorld()->GetDeltaSeconds();
-	FVector2D PositionDisplacement = LogoSlot->GetPosition() - StartPosition_Widget;
-
+	FVector2D CurrentSpringPosition = LogoSlot->GetPosition();
+	
+	FVector2D PositionDisplacement = CurrentSpringPosition - StartPosition_Widget;
 	if (ReachedThreshold(PositionDisplacement))
 	{
 		ResetLogo();
 		return;
 	}
 	
-	FVector2D SpringAcceleration = NetForces(PositionDisplacement);
+	FVector2D SpringAcceleration = NetForce(PositionDisplacement);
 	SpringVelocity_Vector += SpringAcceleration * DeltaTime;
 
-	FVector2D NewPositionDisplacement = PositionDisplacement + SpringVelocity_Vector * DeltaTime;
-	FVector2D NewPosition = StartPosition_Widget + NewPositionDisplacement;
-	LogoSlot->SetPosition(NewPosition);
+	FVector2D NewSpringPosition = CurrentSpringPosition + (SpringVelocity_Vector * DeltaTime);
+	LogoSlot->SetPosition(NewSpringPosition);
 }
 
-float USpringsTutorialWidget::NetForces(float Displacement)
+float USpringsTutorialWidget::NetForce(float Displacement)
 {
-	// Calculate the acceleration the spring would have:
 	float SpringForce = -(SpringConstant * Displacement); // Hooke's law
 	float DampingForce = DampingCoefficient * (-SpringVelocity); // Damping force ~Friction
-	float NetForces = SpringForce + DampingForce; // Net forces acting on the spring
-	
-	return NetForces;
+	return SpringForce + DampingForce; // Net forces acting on the spring
 }
 
-FVector2D USpringsTutorialWidget::NetForces(FVector2D Displacement_Vector)
+FVector2D USpringsTutorialWidget::NetForce(FVector2D Displacement_Vector)
 {
 	FVector2D SpringForce = -(SpringConstant * Displacement_Vector); // Hooke's law
-	FVector2D DampingForce = DampingCoefficient * (-SpringVelocity_Vector);
-	FVector2D NetForces = SpringForce + DampingForce;
-
-	return NetForces;
+	FVector2D DampingForce = DampingCoefficient * (-SpringVelocity_Vector); // Damping force ~Friction
+	return SpringForce + DampingForce; // Net forces acting on the spring
 }
 
 bool USpringsTutorialWidget::ReachedThreshold(float Displacement)
