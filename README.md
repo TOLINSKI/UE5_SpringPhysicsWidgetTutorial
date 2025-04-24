@@ -1,5 +1,4 @@
-# SpringPhysicsWidgetTutorial
- Widget with spring physics simulation
+# Spring Physics Widget Tutorial
 
 This is the code repository for UE5 Widget Spring Physics Simulation in C++.
 
