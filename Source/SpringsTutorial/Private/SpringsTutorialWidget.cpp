@@ -25,8 +25,6 @@ void USpringsTutorialWidget::NativeOnInitialized()
 	GetOwningPlayer()->GetViewportSize(ViewportSizeInt.X, ViewportSizeInt.Y);
 	ViewportScale = GetViewportScaleBasedOnSize(ViewportSizeInt);
 
-	UE_LOG(LogTemp, Display, TEXT("ViewportScale = %f"), ViewportScale);
-
 	// Store a variable for logo's slot:
 	LogoSlot = Cast<UCanvasPanelSlot>(Logo->Slot);
 
