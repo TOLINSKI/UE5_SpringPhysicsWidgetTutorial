@@ -10,7 +10,7 @@ void USpringsTutorialWidget::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
 
-	// Setup variables: (Can be overwritten in the editor)
+	// Setup editor variables: (Can be overwritten in the editor)
 	SpringConstant = 200.f;
 	DampingCoefficient = 5.f;
 	MouseEffect = 0.1f;
@@ -60,7 +60,7 @@ void USpringsTutorialWidget::NativeTick(const FGeometry& MyGeometry, float Delta
 		AdjustLogo();
 		return;
 	}
-	Spring();
+	Spring(); // Physics simulation
 }
 
 void USpringsTutorialWidget::AdjustLogo()
@@ -71,14 +71,14 @@ void USpringsTutorialWidget::AdjustLogo()
 
 	// Convert to mouse position in widget scale:
 	FVector2D MousePosition_Widget = MousePosition_Screen / ViewportScale;
-		
+
 	// Place logo on mouse position if enabled:
 	if (bSpringPosition)
 	{
 		AdjustPosition(MousePosition_Widget);
 		return;
 	}
-		
+	
 	// Adjust logo's properties based on mouse X position:
 	float AmountToAdjust = MousePosition_Widget.X - StartPosition_Widget.X;
 
@@ -160,16 +160,12 @@ void USpringsTutorialWidget::SpringShear()
 	}
 	
 	// Calculate the rate of change in position (velocity):
-	float Mass = 1.f; // Mass of the object (for example's sake)
-	float SpringForce = - (SpringConstant * ShearDisplacement); // Hooke's law
-	float DampingForce = DampingCoefficient * (-SpringVelocity);
-	float NetForces = SpringForce + DampingForce;
-	float SpringAcceleration = NetForces / Mass; // a = F/m (Newton's second law)
-	SpringVelocity += SpringAcceleration * DeltaTime; // Frame-independent velocity from "integrating" acceleration 
-
-	// Get the change in position from velocity over delta time:
-	float NewShearX = CurrentShearPosition + (SpringVelocity * DeltaTime); // Frame-independent position from "integrating" velocity
-	Logo->SetRenderShear(FVector2D(NewShearX, 0.0f));
+	float SpringAcceleration = NetForce(ShearDisplacement);
+	SpringVelocity += SpringAcceleration * DeltaTime; // Frame-independent velocity from "integrating" acceleration
+	
+	// Add the change in position (velocity * delta-time seconds):
+	float NewShearPosition = CurrentShearPosition + (SpringVelocity * DeltaTime); // Frame-independent position from "integrating" velocity
+	Logo->SetRenderShear(FVector2D(NewShearPosition, 0.0f));
 }
 
 void USpringsTutorialWidget::SpringScale()
@@ -191,9 +187,9 @@ void USpringsTutorialWidget::SpringScale()
 
 	// Calculate new position from velocity over delta time:
 	float NewScaleX = CurrentScalePosition + (SpringVelocity * DeltaTime);
-	float NewScaleY = 2.f - NewScaleX;
+	float NewScaleY = 2.f - NewScaleX; // Y Decreases as X increases and vice versa
 
-	// Constraint Scale not to flip:
+	// Constraint Scale not to flip: Uncomment after exmaple
 	NewScaleX = FMath::Max(NewScaleX, 0.1f);
 	NewScaleY = FMath::Max(NewScaleY, 0.1f);
 	
@@ -203,9 +199,9 @@ void USpringsTutorialWidget::SpringScale()
 void USpringsTutorialWidget::SpringPosition()
 {
 	float DeltaTime = GetWorld()->GetDeltaSeconds();
-	FVector2D CurrentSpringPosition = LogoSlot->GetPosition();
+	FVector2D CurrentPosition_Widget = LogoSlot->GetPosition();
 	
-	FVector2D PositionDisplacement = CurrentSpringPosition - StartPosition_Widget;
+	FVector2D PositionDisplacement = CurrentPosition_Widget - StartPosition_Widget;
 	if (ReachedThreshold(PositionDisplacement))
 	{
 		ResetLogo();
@@ -215,7 +211,7 @@ void USpringsTutorialWidget::SpringPosition()
 	FVector2D SpringAcceleration = NetForce(PositionDisplacement);
 	SpringVelocity_Vector += SpringAcceleration * DeltaTime;
 
-	FVector2D NewSpringPosition = CurrentSpringPosition + (SpringVelocity_Vector * DeltaTime);
+	FVector2D NewSpringPosition = CurrentPosition_Widget + (SpringVelocity_Vector * DeltaTime);
 	LogoSlot->SetPosition(NewSpringPosition);
 }
 
