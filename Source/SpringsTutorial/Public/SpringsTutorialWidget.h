@@ -76,6 +76,7 @@ protected:
 	bool bMousePressed = false;
 	FVector2D StartPosition_Widget;
 	float ViewportScale;
+	FVector2D ViewportSize_Widget;
 	
 	// Spring Function =============================================================
 	UFUNCTION(BlueprintCallable, Category = "Springs Tutorial")

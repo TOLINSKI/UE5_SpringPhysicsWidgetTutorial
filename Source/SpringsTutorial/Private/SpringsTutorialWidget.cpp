@@ -1,7 +1,6 @@
 // Copyright 2025,  Benski Game Works, All Rights Reserved.
 
 #include "SpringsTutorialWidget.h"
-#include "FunctionalUIScreenshotTest.h"
 #include "UMG.h"
 #include "Runtime/Engine/Classes/Engine/UserInterfaceSettings.h"
 #include "Components/Image.h"
@@ -24,6 +23,7 @@ void USpringsTutorialWidget::NativeOnInitialized()
 	FInt32Vector2 ViewportSizeInt;
 	GetOwningPlayer()->GetViewportSize(ViewportSizeInt.X, ViewportSizeInt.Y);
 	ViewportScale = GetViewportScaleBasedOnSize(ViewportSizeInt);
+	ViewportSize_Widget = FVector2D(ViewportSizeInt.X, ViewportSizeInt.Y) / ViewportScale;
 
 	// Store a variable for logo's slot:
 	LogoSlot = Cast<UCanvasPanelSlot>(Logo->Slot);
@@ -71,6 +71,7 @@ void USpringsTutorialWidget::AdjustLogo()
 
 	// Convert to mouse position in widget scale:
 	FVector2D MousePosition_Widget = MousePosition_Screen / ViewportScale;
+	MousePosition_Widget -= ViewportSize_Widget / 2.f; // Mouse poisiton relative to center
 
 	// Place logo on mouse position if enabled:
 	if (bSpringPosition)
